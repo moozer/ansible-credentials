@@ -1,0 +1,28 @@
+# log in as user and create the base user specified in the host_vars.
+# use
+#   -e ansible_ssh_user=existing_user" to bypass the default (non-existing) user
+- hosts: all
+  gather_facts: False
+  become: yes
+  become_method: su
+
+  tasks:
+  - debug: msg="Loggin in as user {{ansible_ssh_user}} on host {{inventory_hostname}}"
+
+  - name: generate hash from password
+    connection: local
+    become: no
+    command: mkpasswd --method=SHA-512 {{ user_pass }}
+    register: user_pass_hash
+    check_mode: no
+    changed_when: false
+    no_log: True
+
+  - name: add system user {{ user_name }}
+    user: name={{ user_name }} shell=/bin/bash
+          groups=adm append=yes
+          password={{ user_pass_hash.stdout }}
+
+  - name: add public key to authorized keys
+    authorized_key: user={{ user_name }}
+                    key="{{ user_ssh_pub_key }}"
